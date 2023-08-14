@@ -18,7 +18,7 @@
 
 **Установка:**
 
--   Выполнить команду `curl <raw-url-of-compose.yaml> -o docker-compose.yaml && docker-compose up`
+-   Выполнить команду `curl https://raw.githubusercontent.com/murningstar/pipeline-overview/main/docker-compose.yaml -o docker-compose.yaml && docker-compose up`
 -   Или скопировать вручную и запустить `docker-compose.yaml` из этого репозитория.
 
 UI будет доступен по адресу: **`localhost:80`**. Карта - интерактивная, маркеры - кликабельны

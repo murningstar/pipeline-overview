@@ -39,7 +39,7 @@ UI будет доступен по адресу: **`localhost:80`**. Карта
 ## 3) Описание проекта
 
 Обзорное изображение работы пайплайна:
-[![Pipeline overview image](./Streaming-pipeline.webp)](./Streaming-pipeline.webp)
+[![Pipeline overview image](./assets/Streaming-pipeline.webp)](https://raw.githubusercontent.com/murningstar/pipeline-overview/main/Streaming-pipeline.webp)
 Этот пайплайн - это мой pet-проект, который я сделал чтобы разобраться с технологиями и подходами из больших данных, да вообще с it-технологиями в целом. \
 **Проект состоит из нескольких компонентов**:
 

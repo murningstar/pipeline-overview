@@ -1,0 +1,111 @@
+services:
+  generator:
+    image: michaelmorningstar/generator-demo:latest
+    ports:
+      - 7331:7331
+    networks:
+      - pipelinenetwork
+    depends_on:
+      init-topics:
+        condition: service_completed_successfully
+    environment:
+      - STORES_NUMBER=20
+  
+  proxy:
+    image: michaelmorningstar/proxy:latest
+    ports:
+      - 3773:3773
+    networks:
+      - pipelinenetwork
+    depends_on:
+      kafka:
+        condition: service_healthy
+      processing:
+        condition: service_started
+
+  kafka:
+    image: 'bitnami/kafka:latest'
+    networks:
+      - pipelinenetwork
+    environment:
+      # KRaft settings
+      - KAFKA_CFG_NODE_ID=0
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
+      # Listeners
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://:9092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+    ports:
+      - 9092:9092
+      - 9094:9094
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics.sh --list --bootstrap-server localhost:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
+  init-topics:
+    image: 'bitnami/kafka:latest'
+    command: > # перед созданием каждого топика проверка (перед ||), не создан ли он уже
+      sh -c "
+      /opt/bitnami/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list | grep -q 'sales-topic' || 
+      /opt/bitnami/kafka/bin/kafka-topics.sh --create --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1 --topic sales-topic
+      &&
+      /opt/bitnami/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list | grep -q 'total-per-store' || 
+      /opt/bitnami/kafka/bin/kafka-topics.sh --create --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1 --config cleanup.policy=compact --config retention.ms=315360000000 --topic total-per-store
+      &&
+      /opt/bitnami/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list | grep -q 'highest-receipt-per-store' || 
+      /opt/bitnami/kafka/bin/kafka-topics.sh --create --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1 --config cleanup.policy=compact --config retention.ms=315360000000 --topic highest-receipt-per-store
+      &&
+      echo ' ***************** All topics are created ********************* '
+      "
+    networks:
+      - pipelinenetwork
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  processing:
+    image: michaelmorningstar/processing:latest
+    networks:
+      - pipelinenetwork
+    depends_on:
+      init-topics:
+        condition: service_completed_successfully
+
+  redis-stack:
+    image: redis/redis-stack:latest
+    ports:
+      - 6379:6379
+      - 8001:8001
+    networks:
+      - pipelinenetwork
+
+  delivery:
+    image: michaelmorningstar/delivery:latest
+    ports:
+      - 7337:7337
+    networks:
+      - pipelinenetwork
+    depends_on:
+      init-topics:
+        condition: service_completed_successfully
+    restart: on-failure
+
+  ui:
+    image: michaelmorningstar/vue-maplibre-ui:latest
+    ports:
+      - 80:80
+    networks:
+      - pipelinenetwork
+    depends_on:
+      generator:
+        condition: service_started
+      delivery:
+        condition: service_started
+
+networks:
+  pipelinenetwork:
